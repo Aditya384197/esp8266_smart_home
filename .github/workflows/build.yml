@@ -1,4 +1,4 @@
-name: Build esp8266_smart_home
+name: Build ESP8266 Smart Home
 
 on:
   push:
@@ -40,7 +40,7 @@ jobs:
           arduino-cli compile \
             --fqbn "esp8266:esp8266:nodemcuv2:eesz=4M2M,xtal=80,baud=115200" \
             --output-dir build \
-            esp8266_smart_home
+            .
 
       - name: Show build output
         run: |
