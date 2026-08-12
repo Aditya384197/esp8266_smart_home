@@ -386,16 +386,16 @@ const DAY_LABELS=['Su','Mo','Tu','We','Th','Fr','Sa'];
 let selDays=new Set([0,1,2,3,4,5,6]);
 let relayNames=[];
 
-function esc(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+const esc=function(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))};
 
-function renderDayBtns(){
+const renderDayBtns=function(){
   let h='';
   DAY_LABELS.forEach((d,i)=>{h+=`<button type="button" class="daybtn ${selDays.has(i)?'on':''}" onclick="toggleDay(${i})">${d}</button>`});
   document.getElementById('dayBtns').innerHTML=h;
-}
-function toggleDay(i){if(selDays.has(i))selDays.delete(i);else selDays.add(i);renderDayBtns();}
+};
+const toggleDay=function(i){if(selDays.has(i))selDays.delete(i);else selDays.add(i);renderDayBtns();};
 
-async function loadStatus(){
+const loadStatus=async function(){
   try{
     let r=await fetch('/api/status',{cache:'no-store'});
     let d=await r.json();
@@ -412,12 +412,12 @@ async function loadStatus(){
     document.getElementById('cloudPill').textContent=d.cloudConfigured?(d.cloudOnline?'Cloud online':'Cloud configured'):'Local only';
     document.getElementById('cloudPill').className='pill'+(d.cloudConfigured?' ok':'');
   }catch(e){}
-}
-async function setRelay(n,on){
+};
+const setRelay=async function(n,on){
   try{await fetch(`/api/relay?relay=${n}&state=${on?1:0}`,{cache:'no-store'});await loadStatus();}catch(e){alert('Command failed');}
-}
+};
 
-async function loadSchedules(){
+const loadSchedules=async function(){
   try{
     let r=await fetch('/api/schedules',{cache:'no-store'});let d=await r.json();
     let h='';
@@ -428,8 +428,8 @@ async function loadSchedules(){
     });
     document.getElementById('schedList').innerHTML=h||'<div class="msg">No schedules yet.</div>';
   }catch(e){}
-}
-async function addSchedule(){
+};
+const addSchedule=async function(){
   let m=document.getElementById('schedMsg');
   let relay=parseInt(document.getElementById('sRelay').value);
   let t=document.getElementById('sTime').value.split(':');
@@ -442,12 +442,12 @@ async function addSchedule(){
     if(!r.ok)throw 0;
     m.textContent='Schedule added.';await loadSchedules();
   }catch(e){m.textContent='Could not save schedule.';}
-}
-async function delSchedule(id){
+};
+const delSchedule=async function(id){
   try{await fetch('/api/schedules?id='+id,{method:'DELETE'});await loadSchedules();}catch(e){}
-}
+};
 
-async function saveWifi(){
+const saveWifi=async function(){
   let m=document.getElementById('wifiMsg');
   let ssid=document.getElementById('staSsid').value,pass=document.getElementById('staPass').value;
   if(!ssid||pass.length<8){m.textContent='Enter SSID and an 8+ character password.';return;}
@@ -456,8 +456,8 @@ async function saveWifi(){
     let r=await fetch('/api/wifi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password:pass})});
     if(!r.ok)throw 0;m.textContent='Saved. Connecting to your Wi-Fi...';
   }catch(e){m.textContent='Save failed.';}
-}
-async function saveCloud(){
+};
+const saveCloud=async function(){
   let m=document.getElementById('cloudMsg');
   let url=document.getElementById('cloudUrl').value.trim();
   let id=document.getElementById('deviceId').value.trim();
@@ -469,8 +469,8 @@ async function saveCloud(){
     let r=await fetch('/api/cloud',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,deviceId:id,deviceToken:token})});
     if(!r.ok)throw 0;m.textContent='Saved. Remote control will activate once connected.';
   }catch(e){m.textContent='Save failed.';}
-}
-function uploadFw(){
+};
+const uploadFw=function(){
   let f=document.getElementById('fw').files[0],m=document.getElementById('otaMsg');
   if(!f){m.textContent='Select a .bin file first.';return;}
   let pw=prompt('Enter OTA update password:');if(pw===null)return;
@@ -483,12 +483,12 @@ function uploadFw(){
   xhr.onload=function(){m.textContent=xhr.status>=200&&xhr.status<300?'Update successful. Restarting...':'Update failed.';};
   xhr.onerror=function(){m.textContent='Upload interrupted.';};
   xhr.send(f);
-}
-function showTab(id){
+};
+const showTab=function(id){
   ['sched','wifi','cloud','ota'].forEach(t=>document.getElementById(t).classList.toggle('hidden',t!==id));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   event.target.classList.add('active');
-}
+};
 renderDayBtns();
 loadStatus();loadSchedules();
 setInterval(loadStatus,800);
@@ -733,8 +733,7 @@ void setup() {
 
   setupWifi();
 
-  const char *headerKeys[] = {"X-OTA-Password"};
-  server.collectHeaders(headerKeys, 1);
+  server.collectHeaders("X-OTA-Password");
 
   server.on("/", HTTP_GET, handleRoot);
   server.on("/api/status", HTTP_GET, handleStatus);
