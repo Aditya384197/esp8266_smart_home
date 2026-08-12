@@ -1,4 +1,4 @@
-name: Build ESP8266 Smart Home
+name: Build esp8266_smart_home
 
 on:
   push:
