@@ -132,7 +132,7 @@ void loadDefaults() {
 }
 
 bool saveConfig() {
-  DynamicJsonDocument doc(4096);
+  DynamicJsonDocument doc(6144);
   doc["ap_ssid"] = apSsid;
   doc["ap_pass"] = apPassword;
   doc["sta_ssid"] = staSsid;
@@ -171,7 +171,7 @@ void loadConfig() {
   if (!LittleFS.exists(CONFIG_PATH)) return;
   File f = LittleFS.open(CONFIG_PATH, "r");
   if (!f) return;
-  DynamicJsonDocument doc(4096);
+  DynamicJsonDocument doc(6144);
   DeserializationError err = deserializeJson(doc, f);
   f.close();
   if (err) return;
@@ -226,10 +226,6 @@ bool cloudConfigured() { return cloudUrl[0] && deviceId[0] && deviceToken[0]; }
 
 void applyRelay(int idx) {
   digitalWrite(RELAY_GPIO[idx], relayState[idx] ? RELAY_ACTIVE_LEVEL : !RELAY_ACTIVE_LEVEL);
-}
-
-void applyAllRelays() {
-  for (int i = 0; i < RELAY_COUNT; i++) applyRelay(i);
 }
 
 void setRelay(int idx, int state) {
@@ -540,7 +536,7 @@ void handleWifiPost() {
   strlcpy(staPassword, pass, sizeof(staPassword));
   saveConfig();
   sendJson(200, "{\"ok\":true}");
-  WiFi.begin(staSsid, staPassword); // reconnect without a full reboot
+  applyWifiMode(); // switch AP-only -> AP+STA (or reconnect) without a full reboot
 }
 
 void handleCloudPost() {
@@ -565,7 +561,7 @@ void handleCloudPost() {
 }
 
 void handleSchedulesGet() {
-  DynamicJsonDocument doc(2048);
+  DynamicJsonDocument doc(3072);
   JsonArray arr = doc.createNestedArray("schedules");
   for (int i = 0; i < scheduleCount; i++) {
     JsonObject o = arr.createNestedObject();
@@ -706,12 +702,35 @@ void pollCloud() {
 /* ---------------- Wi-Fi setup ---------------- */
 
 void setupWifi() {
-  WiFi.mode(WIFI_AP_STA);
+  /* Stability fixes for ESP8266's single-radio AP+STA combo:
+   *   - persistent(false): don't wear out flash / avoid stale saved creds
+   *     fighting with our own LittleFS-based config
+   *   - setSleepMode(WIFI_NONE_SLEEP): the single most common fix for an
+   *     ESP8266 softAP silently dropping connected phones every few
+   *     seconds -- modem sleep delays the radio's response to AP clients
+   *   - AP-only mode until a home Wi-Fi is actually saved: this is exactly
+   *     the "first connect" case, and pure AP mode is materially more
+   *     stable than AP+STA on a single-radio chip when STA has nothing to
+   *     do yet anyway. */
+  WiFi.persistent(false);
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
+
+  applyWifiMode();
+
   WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
   WiFi.softAP(apSsid, apPassword, 6, 0, AP_MAX_CONNECTIONS);
-  if (staSsid[0]) WiFi.begin(staSsid, staPassword);
 
+  dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
   dnsServer.start(DNS_PORT, "*", IPAddress(192, 168, 4, 1));
+}
+
+void applyWifiMode() {
+  if (staSsid[0]) {
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.begin(staSsid, staPassword);
+  } else {
+    WiFi.mode(WIFI_AP);
+  }
 }
 
 /* ---------------- setup / loop ---------------- */
